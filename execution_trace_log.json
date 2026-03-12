@@ -1,0 +1,83 @@
+{
+  "timestamp": "2026-03-05T18:45:32.123456Z",
+  "level": "INFO",
+  "logger": "src.core.gateway",
+  "message": "Execution trace event",
+  "event_type": "execution_trace",
+  "execution_trace": {
+    "execution_id": "exec_f8e7d6c5b4a39281",
+    "module_id": "sample_text",
+    "intent": "generate",
+    "user_id": "trace_test_user",
+    "timestamp": "2026-03-05T18:45:32.123456Z",
+    "input_hash": "sha256:a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+    "output_hash": "sha256:fedcba0987654321098765432109876543210fedcba0987654321098765432",
+    "semantic_hash": "sha256:123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "status": "success",
+    "execution_duration_ms": 1456.7,
+    "truth_classification_level": "unclassified"
+  },
+  "telemetry_target": "insightflow",
+  "registry_validation": {
+    "validated": true,
+    "contract_hash": "sha256:sample_text_v1_0_0",
+    "validation_timestamp": "2026-03-05T18:45:30.987654Z"
+  },
+  "execution_metadata": {
+    "gateway_version": "1.0.0",
+    "registry_validator_version": "1.0.0",
+    "envelope_generator_version": "1.0.0",
+    "hash_generator_version": "1.0.0"
+  },
+  "provenance_metadata": {
+    "upstream_source": "prompt_runner",
+    "downstream_targets": ["bucket", "intelligence_core"],
+    "execution_path": "registry_validation -> module_execution -> envelope_generation -> trace_logging",
+    "replay_ready": true,
+    "deterministic_execution": true
+  },
+  "performance_metrics": {
+    "registry_validation_ms": 15.2,
+    "module_execution_ms": 1398.5,
+    "envelope_generation_ms": 32.1,
+    "hash_generation_ms": 8.9,
+    "trace_logging_ms": 2.0
+  },
+  "audit_trail": [
+    {
+      "timestamp": "2026-03-05T18:45:30.987654Z",
+      "event": "registry_validation_started",
+      "component": "registry_validator"
+    },
+    {
+      "timestamp": "2026-03-05T18:45:31.002854Z",
+      "event": "registry_validation_passed",
+      "component": "registry_validator"
+    },
+    {
+      "timestamp": "2026-03-05T18:45:31.003000Z",
+      "event": "module_execution_started",
+      "component": "gateway"
+    },
+    {
+      "timestamp": "2026-03-05T18:45:32.401500Z",
+      "event": "module_execution_completed",
+      "component": "sample_text_module"
+    },
+    {
+      "timestamp": "2026-03-05T18:45:32.401600Z",
+      "event": "envelope_generation_started",
+      "component": "execution_envelope_manager"
+    },
+    {
+      "timestamp": "2026-03-05T18:45:32.433700Z",
+      "event": "envelope_generation_completed",
+      "component": "execution_envelope_manager"
+    },
+    {
+      "timestamp": "2026-03-05T18:45:32.442600Z",
+      "event": "trace_logging_completed",
+      "component": "gateway"
+    }
+  ]
+}

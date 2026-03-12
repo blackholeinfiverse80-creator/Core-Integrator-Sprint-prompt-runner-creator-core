@@ -6,6 +6,9 @@ from ..agents.video import VideoAgent
 from ..modules.base import BaseModule
 from .module_loader import load_modules
 from .feedback_models import CanonicalFeedbackSchema
+from .registry_validation_logic import RegistryValidator, RegistryValidationError
+from .execution_envelope import ExecutionEnvelopeManager
+from .hash_generation import ExecutionHashGenerator
 from ..db.memory import ContextMemory
 from ..db.memory_adapter import SQLiteAdapter, RemoteNoopurAdapter, MONGODB_AVAILABLE
 from ..utils.logger import setup_logger
@@ -13,6 +16,7 @@ from ..utils.bridge_client import BridgeClient
 from ..utils.video_bridge_client import VideoBridgeClient
 from config.config import DB_PATH, INTEGRATOR_USE_NOOPUR, USE_MONGODB, MONGODB_CONNECTION_STRING, MONGODB_DATABASE_NAME
 from pydantic import ValidationError
+import time
 
 if MONGODB_AVAILABLE:
     from ..db.mongodb_adapter import MongoDBAdapter
@@ -26,6 +30,15 @@ class Gateway:
     def __init__(self):
         # Initialize logger first
         self.logger = setup_logger(__name__)
+        
+        # Initialize registry validator for strict execution discipline
+        self.registry_validator = RegistryValidator()
+        
+        # Initialize execution envelope manager for traceability
+        self.envelope_manager = ExecutionEnvelopeManager()
+        
+        # Initialize hash generator for replay validation
+        self.hash_generator = ExecutionHashGenerator()
         
         # Initialize BridgeClient as canonical external service interface
         self.bridge_client = BridgeClient()
@@ -110,6 +123,33 @@ class Gateway:
                        data: Dict[str, Any]) -> Dict[str, Any]:
         """Process incoming request and route to appropriate agent"""
         
+        start_time = time.time()
+        
+        # PART 1: Registry Validation - Enforce strict execution discipline
+        try:
+            validation_result = self.registry_validator.validate_execution_request(module, intent, data)
+            if not validation_result["valid"]:
+                # Reject execution immediately - no fallback permitted
+                self.logger.error(f"Registry validation failed for module '{module}': {validation_result['error']}")
+                return {
+                    "status": "error",
+                    "message": f"Registry validation failed: {validation_result['error']}",
+                    "result": {},
+                    "validation_error": True
+                }
+            
+            registry_entry = validation_result["registry_entry"]
+            truth_classification_level = registry_entry.truth_classification_level
+            
+        except Exception as e:
+            self.logger.error(f"Registry validation system error: {e}")
+            return {
+                "status": "error",
+                "message": "Registry validation system error",
+                "result": {},
+                "validation_error": True
+            }
+        
         # Special validation for feedback requests
         if module == "creator" and intent == "feedback":
             try:
@@ -126,10 +166,15 @@ class Gateway:
         # Get user context (adapter provides get_context)
         context = self.memory.get_context(user_id) if user_id else []
         
-        # Log request
+        # Log request with execution tracing
         self.logger.info(
             f"Processing request for module: {module}, intent: {intent}",
-            extra={"user_id": user_id, "request_data": {"module": module, "intent": intent, "data": data}}
+            extra={
+                "user_id": user_id, 
+                "request_data": {"module": module, "intent": intent, "data": data},
+                "registry_validation": "passed",
+                "truth_classification_level": truth_classification_level
+            }
         )
         
         # Special handling for creator flows: pre-warm with context from Noopur/local memory
@@ -176,6 +221,9 @@ class Gateway:
                     "result": {}
                 }
         
+        # Calculate execution duration
+        execution_duration_ms = (time.time() - start_time) * 1000
+        
         # Normalize response into standardized CoreResponse shape (do not rely on module to emit full CoreResponse)
         normalized = {
             'status': 'success',
@@ -195,6 +243,38 @@ class Gateway:
                 # avoid copying status/message keys into result
                 raw = {k: v for k, v in response.items() if k not in ('status', 'message', 'result')}
                 normalized['result'] = raw
+        
+        # PART 2: Generate Execution Envelope - Standardized execution tracing
+        try:
+            execution_envelope = self.envelope_manager.create_immediate_envelope(
+                module_id=module,
+                intent=intent,
+                user_id=user_id,
+                input_data=data,
+                output_data=normalized,
+                schema_version=registry_entry.schema_version,
+                truth_classification_level=truth_classification_level,
+                execution_duration_ms=execution_duration_ms
+            )
+            
+            # Add envelope to response for traceability
+            normalized['execution_envelope'] = self.envelope_manager.generator.envelope_to_dict(execution_envelope)
+            
+            # PART 3: Generate Replay Hashes - Deterministic hashing for replay validation
+            hash_fingerprint = self.hash_generator.generate_execution_fingerprint(
+                module_id=module,
+                intent=intent,
+                user_id=user_id,
+                input_data=data,
+                output_data=normalized
+            )
+            
+            # Add hashes to envelope
+            normalized['execution_envelope'].update(hash_fingerprint)
+            
+        except Exception as e:
+            self.logger.error(f"Execution envelope generation failed: {e}")
+            # Continue execution but log the failure
 
         # Store interaction
         if user_id:
@@ -204,11 +284,45 @@ class Gateway:
             except Exception:
                 self.logger.exception("Failed to store interaction")
 
-        # Log response
+        # PART 4: Execution Logging Alignment - Structured log event for telemetry
+        try:
+            execution_trace_log = {
+                "execution_id": normalized.get('execution_envelope', {}).get('execution_id', 'unknown'),
+                "module_id": module,
+                "intent": intent,
+                "user_id": user_id,
+                "timestamp": normalized.get('execution_envelope', {}).get('timestamp_utc', ''),
+                "input_hash": normalized.get('execution_envelope', {}).get('input_hash', ''),
+                "output_hash": normalized.get('execution_envelope', {}).get('output_hash', ''),
+                "semantic_hash": normalized.get('execution_envelope', {}).get('semantic_hash', ''),
+                "status": normalized.get('status'),
+                "execution_duration_ms": execution_duration_ms,
+                "truth_classification_level": truth_classification_level
+            }
+            
+            # Emit structured log through InsightFlow telemetry
+            self.logger.info(
+                "Execution trace event",
+                extra={
+                    "event_type": "execution_trace",
+                    "execution_trace": execution_trace_log,
+                    "telemetry_target": "insightflow"
+                }
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Execution trace logging failed: {e}")
+
+        # Log response with execution envelope metadata
         try:
             self.logger.info(
                 f"Request processed with status: {normalized.get('status')}",
-                extra={"user_id": user_id, "response_data": normalized}
+                extra={
+                    "user_id": user_id, 
+                    "response_data": normalized,
+                    "execution_envelope_id": normalized.get('execution_envelope', {}).get('execution_id'),
+                    "replay_ready": True
+                }
             )
         except Exception:
             pass

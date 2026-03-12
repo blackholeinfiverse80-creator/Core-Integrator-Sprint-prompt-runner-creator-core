@@ -1,0 +1,92 @@
+{
+  "execution_id": "exec_a1b2c3d4e5f6g7h8",
+  "module_id": "sample_text",
+  "product_id": "core_integrator",
+  "schema_version": "1.0.0",
+  "input_hash": "sha256:4f2d8b5c9e1a3f7b8d6c2a9e5f1b7d3c8a4e6f2b9d5c1a7e3f8b6d2c9a5e1f4b7",
+  "output_hash": "sha256:7b3f1d8c5a9e2f6b4d1c8a5e9f2b6d3c1a7e4f8b5d9c2a6e3f1b8d5c9a2e6f4b",
+  "truth_classification_level": "unclassified",
+  "parent_execution_id": null,
+  "timestamp_utc": "2026-03-05T18:30:45.123456Z",
+  "intent": "generate",
+  "user_id": "execution_trace_test",
+  "semantic_hash": "sha256:9e2f6b4d1c8a5e9f2b6d3c1a7e4f8b5d9c2a6e3f1b8d5c9a2e6f4b7d3c1a8e5f",
+  "execution_duration_ms": 1247.5,
+  "status": "success",
+  "execution_metadata": {
+    "gateway_version": "1.0.0",
+    "registry_validation": {
+      "validated": true,
+      "contract_hash": "sha256:sample_text_v1_0_0",
+      "validation_timestamp": "2026-03-05T18:30:44.876543Z"
+    },
+    "input_data": {
+      "module": "sample_text",
+      "intent": "generate",
+      "user_id": "execution_trace_test",
+      "data": {
+        "text": "Execution envelope demonstration payload"
+      }
+    },
+    "output_data": {
+      "status": "success",
+      "message": "Text processed successfully",
+      "result": {
+        "processed_text": "Execution envelope demonstration payload",
+        "word_count": 4,
+        "processing_metadata": {
+          "algorithm": "deterministic_text_processing",
+          "version": "1.0.0"
+        }
+      }
+    },
+    "trace_metadata": {
+      "execution_path": "gateway -> registry_validation -> module_execution -> envelope_generation",
+      "performance_metrics": {
+        "registry_validation_ms": 12.3,
+        "module_execution_ms": 1205.8,
+        "envelope_generation_ms": 29.4
+      },
+      "resource_usage": {
+        "memory_peak_mb": 45.2,
+        "cpu_time_ms": 1180.6
+      }
+    },
+    "replay_metadata": {
+      "replay_ready": true,
+      "deterministic_execution": true,
+      "hash_verification": {
+        "input_hash_verified": true,
+        "output_hash_verified": true,
+        "semantic_hash_verified": true
+      }
+    }
+  },
+  "provenance_chain": {
+    "upstream_source": "prompt_runner",
+    "downstream_targets": ["bucket", "intelligence_core"],
+    "telemetry_emission": "insightflow",
+    "audit_trail": [
+      {
+        "timestamp": "2026-03-05T18:30:44.876543Z",
+        "event": "execution_started",
+        "component": "gateway"
+      },
+      {
+        "timestamp": "2026-03-05T18:30:44.888876Z",
+        "event": "registry_validation_passed",
+        "component": "registry_validator"
+      },
+      {
+        "timestamp": "2026-03-05T18:30:45.094654Z",
+        "event": "module_execution_completed",
+        "component": "sample_text_module"
+      },
+      {
+        "timestamp": "2026-03-05T18:30:45.123456Z",
+        "event": "envelope_generated",
+        "component": "execution_envelope_generator"
+      }
+    ]
+  }
+}
