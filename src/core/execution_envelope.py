@@ -27,6 +27,9 @@ class ExecutionEnvelope:
     semantic_hash: str
     execution_duration_ms: float
     status: str
+    # NEW: Instruction metadata for Creator Core integration
+    instruction_id: Optional[str] = None
+    parent_instruction_id: Optional[str] = None
 
 class ExecutionEnvelopeGenerator:
     """Generates execution envelopes for module executions"""
@@ -66,7 +69,9 @@ class ExecutionEnvelopeGenerator:
         schema_version: str = "1.0.0",
         truth_classification_level: str = "unclassified",
         parent_execution_id: Optional[str] = None,
-        execution_duration_ms: float = 0.0
+        execution_duration_ms: float = 0.0,
+        instruction_id: Optional[str] = None,
+        parent_instruction_id: Optional[str] = None
     ) -> ExecutionEnvelope:
         """
         Create execution envelope for a module execution
@@ -108,7 +113,9 @@ class ExecutionEnvelopeGenerator:
             user_id=user_id,
             semantic_hash=semantic_hash,
             execution_duration_ms=execution_duration_ms,
-            status=status
+            status=status,
+            instruction_id=instruction_id,
+            parent_instruction_id=parent_instruction_id
         )
     
     def envelope_to_dict(self, envelope: ExecutionEnvelope) -> Dict[str, Any]:
@@ -210,7 +217,9 @@ class ExecutionEnvelopeManager:
         schema_version: str = "1.0.0",
         truth_classification_level: str = "unclassified",
         parent_execution_id: Optional[str] = None,
-        execution_duration_ms: float = 0.0
+        execution_duration_ms: float = 0.0,
+        instruction_id: Optional[str] = None,
+        parent_instruction_id: Optional[str] = None
     ) -> ExecutionEnvelope:
         """
         Create complete envelope immediately (for simple cases)
@@ -227,7 +236,9 @@ class ExecutionEnvelopeManager:
             schema_version=schema_version,
             truth_classification_level=truth_classification_level,
             parent_execution_id=parent_execution_id,
-            execution_duration_ms=execution_duration_ms
+            execution_duration_ms=execution_duration_ms,
+            instruction_id=instruction_id,
+            parent_instruction_id=parent_instruction_id
         )
     
     def get_active_executions(self) -> Dict[str, Dict[str, Any]]:

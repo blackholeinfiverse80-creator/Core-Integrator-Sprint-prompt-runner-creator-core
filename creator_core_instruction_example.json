@@ -1,0 +1,38 @@
+{
+  "status": "success",
+  "message": "Creative content generated with context",
+  "result": {
+    "content": "Generated content for: unknown topic",
+    "related_context": [],
+    "enhanced_data": {
+      "blueprint_type": "content_generation",
+      "text": "Create engaging content about AI innovation",
+      "type": "article",
+      "goal": "inform",
+      "_instruction_metadata": {
+        "instruction_id": "inst_cc_001",
+        "origin": "creator_core",
+        "timestamp": "2026-03-20T07:58:48.634592",
+        "schema_version": "1.0.0"
+      }
+    }
+  },
+  "execution_envelope": {
+    "execution_id": "exec_df03ba746a084927",
+    "module_id": "creator",
+    "product_id": "core_integrator",
+    "schema_version": "1.0.0",
+    "input_hash": "50d472462bca95bd1e76484525b0280c121942cc561aba7c65dc8fd583567d26",
+    "output_hash": "2cb5c089d210942a78186d81b9216425fd72bc3a0c422a7cbaef94bd567ebaad",
+    "truth_classification_level": "unclassified",
+    "parent_execution_id": null,
+    "timestamp_utc": "2026-03-20T07:58:48.641702+00:00",
+    "intent": "generate",
+    "user_id": "inst_cc_001",
+    "semantic_hash": "ebd6e8779a11e97d2d5695bd03656fae5a2b85b549fd3b16846b81b78171492f",
+    "execution_duration_ms": 7.019519805908203,
+    "status": "success",
+    "instruction_id": "inst_cc_001",
+    "parent_instruction_id": null
+  }
+}

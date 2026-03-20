@@ -118,12 +118,130 @@ class Gateway:
         except ValidationError as e:
             self.logger.error(f"Feedback validation failed: {e}")
             raise ValueError(f"Invalid feedback schema: {e}")
-    
     def process_request(self, module: str, intent: str, user_id: str, 
                        data: Dict[str, Any]) -> Dict[str, Any]:
         """Process incoming request and route to appropriate agent"""
         
         start_time = time.time()
+        
+        # PHASE 1: Creator Core Instruction Detection
+        is_creator_core_instruction = self._is_creator_core_instruction(data)
+        
+        if is_creator_core_instruction:
+            return self._process_creator_core_instruction(data, start_time)
+        else:
+            return self._process_module_request(module, intent, user_id, data, start_time)
+    
+    def _is_creator_core_instruction(self, data: Dict[str, Any]) -> bool:
+        """Check if request is a Creator Core instruction"""
+        required_fields = ['instruction_id', 'origin', 'intent_type', 'target_product', 'payload', 'schema_version', 'timestamp']
+        return (
+            isinstance(data, dict) and
+            all(field in data for field in required_fields) and
+            data.get('origin') == 'creator_core'
+        )
+    
+    def _process_creator_core_instruction(self, instruction: Dict[str, Any], start_time: float) -> Dict[str, Any]:
+        """Process Creator Core instruction"""
+        
+        # Validate instruction schema
+        validation_result = self._validate_creator_core_instruction(instruction)
+        if not validation_result['valid']:
+            self.logger.error(f"Creator Core instruction validation failed: {validation_result['error']}")
+            return {
+                "status": "error",
+                "message": f"Instruction validation failed: {validation_result['error']}",
+                "result": {},
+                "instruction_error": True
+            }
+        
+        # Log instruction received
+        self.logger.info(
+            "Creator Core instruction received",
+            extra={
+                "event_type": "instruction.received",
+                "instruction_id": instruction.get('instruction_id'),
+                "target_product": instruction.get('target_product'),
+                "intent_type": instruction.get('intent_type'),
+                "telemetry_target": "insightflow"
+            }
+        )
+        
+        # Parse blueprint and route to execution
+        try:
+            from .creator_core_parser import CreatorCoreParser
+            parser = CreatorCoreParser()
+            
+            routing_decision = parser.parse_blueprint(instruction)
+            
+            # Log instruction validated
+            self.logger.info(
+                "Creator Core instruction validated",
+                extra={
+                    "event_type": "instruction.validated",
+                    "instruction_id": instruction.get('instruction_id'),
+                    "routing_decision": {
+                        "target_product": routing_decision.target_product,
+                        "module_path": routing_decision.module_path,
+                        "execution_intent": routing_decision.execution_intent
+                    },
+                    "telemetry_target": "insightflow"
+                }
+            )
+            
+            # Execute through routing engine
+            from .routing_engine import RoutingEngine
+            routing_engine = RoutingEngine(self.agents, self.memory)
+            
+            execution_result = routing_engine.execute_instruction(
+                instruction=instruction,
+                routing_decision=routing_decision,
+                start_time=start_time
+            )
+            
+            return execution_result
+            
+        except Exception as e:
+            self.logger.error(f"Creator Core instruction processing failed: {e}")
+            return {
+                "status": "error",
+                "message": f"Instruction processing failed: {str(e)}",
+                "result": {},
+                "instruction_error": True
+            }
+    
+    def _validate_creator_core_instruction(self, instruction: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate Creator Core instruction schema"""
+        required_fields = {
+            'instruction_id': str,
+            'origin': str,
+            'intent_type': str,
+            'target_product': str,
+            'payload': dict,
+            'schema_version': str,
+            'timestamp': str
+        }
+        
+        # Check required fields and types
+        for field, expected_type in required_fields.items():
+            if field not in instruction:
+                return {'valid': False, 'error': f'Missing required field: {field}'}
+            if not isinstance(instruction[field], expected_type):
+                return {'valid': False, 'error': f'Invalid type for {field}: expected {expected_type.__name__}'}
+        
+        # Check origin
+        if instruction['origin'] != 'creator_core':
+            return {'valid': False, 'error': f'Invalid origin: {instruction["origin"]}'}
+        
+        # Check schema version
+        if instruction['schema_version'] != '1.0.0':
+            return {'valid': False, 'error': f'Unsupported schema version: {instruction["schema_version"]}'}
+        
+        return {'valid': True}
+    
+    def _process_module_request(self, module: str, intent: str, user_id: str, 
+                               data: Dict[str, Any], start_time: float) -> Dict[str, Any]:
+        """Process traditional module request (existing logic)"""
         
         # PART 1: Registry Validation - Enforce strict execution discipline
         try:

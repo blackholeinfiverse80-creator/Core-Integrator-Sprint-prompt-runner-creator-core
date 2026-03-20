@@ -1,0 +1,25 @@
+{
+  "instruction_id": "inst_cc_sample_001",
+  "origin": "creator_core",
+  "intent_type": "generate",
+  "target_product": "content",
+  "payload": {
+    "blueprint_type": "content_generation",
+    "text": "Create comprehensive documentation about BHIV ecosystem convergence",
+    "type": "technical_documentation",
+    "goal": "educate",
+    "requirements": {
+      "length": "detailed",
+      "audience": "technical",
+      "format": "structured"
+    }
+  },
+  "schema_version": "1.0.0",
+  "timestamp": "2026-03-12T14:30:00.000Z",
+  "parent_instruction_id": null,
+  "metadata": {
+    "source": "prompt_runner",
+    "priority": "high",
+    "execution_context": "system_convergence"
+  }
+}
