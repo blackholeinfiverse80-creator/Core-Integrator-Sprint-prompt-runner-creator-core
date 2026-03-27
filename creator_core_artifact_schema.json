@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Creator Core Artifact Schema",
+  "description": "Canonical schema for all artifacts in the BHIV Core Bucket system",
+  "type": "object",
+  "required": [
+    "artifact_id",
+    "artifact_type",
+    "instruction_id",
+    "execution_id",
+    "source_module_id",
+    "payload",
+    "artifact_hash",
+    "timestamp"
+  ],
+  "properties": {
+    "artifact_id": {
+      "type": "string",
+      "description": "Unique identifier for this artifact",
+      "pattern": "^artifact_[a-f0-9]{16}$"
+    },
+    "artifact_type": {
+      "type": "string",
+      "description": "Type of artifact in the execution chain",
+      "enum": ["blueprint", "execution", "result"]
+    },
+    "instruction_id": {
+      "type": "string",
+      "description": "Creator Core instruction ID that generated this artifact"
+    },
+    "parent_instruction_id": {
+      "type": ["string", "null"],
+      "description": "Parent instruction ID for chained executions"
+    },
+    "execution_id": {
+      "type": "string",
+      "description": "Execution ID from the routing engine",
+      "pattern": "^exec_[a-f0-9]{16}$"
+    },
+    "source_module_id": {
+      "type": "string",
+      "description": "Module that generated this artifact"
+    },
+    "payload": {
+      "type": "object",
+      "description": "Artifact payload data"
+    },
+    "artifact_hash": {
+      "type": "string",
+      "description": "SHA256 hash of the artifact payload",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "parent_hash": {
+      "type": ["string", "null"],
+      "description": "Hash of the parent artifact for lineage chain",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO 8601 timestamp of artifact creation",
+      "format": "date-time"
+    },
+    "lineage_depth": {
+      "type": "integer",
+      "description": "Depth in the lineage chain (0 = root)",
+      "minimum": 0
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata for the artifact",
+      "properties": {
+        "target_product": {
+          "type": "string",
+          "description": "Target product from Creator Core instruction"
+        },
+        "intent_type": {
+          "type": "string",
+          "description": "Intent type from Creator Core instruction"
+        },
+        "schema_version": {
+          "type": "string",
+          "description": "Schema version used"
+        },
+        "execution_duration_ms": {
+          "type": "number",
+          "description": "Execution duration in milliseconds"
+        },
+        "status": {
+          "type": "string",
+          "description": "Execution status"
+        }
+      }
+    }
+  }
+}

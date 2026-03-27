@@ -9,6 +9,9 @@ from .feedback_models import CanonicalFeedbackSchema
 from .registry_validation_logic import RegistryValidator, RegistryValidationError
 from .execution_envelope import ExecutionEnvelopeManager
 from .hash_generation import ExecutionHashGenerator
+from .lineage_manager import LineageManager
+from .replay_engine import ReplayEngine
+from .bucket_reader import BucketReader
 from ..db.memory import ContextMemory
 from ..db.memory_adapter import SQLiteAdapter, RemoteNoopurAdapter, MONGODB_AVAILABLE
 from ..utils.logger import setup_logger
@@ -39,6 +42,12 @@ class Gateway:
         
         # Initialize hash generator for replay validation
         self.hash_generator = ExecutionHashGenerator()
+        
+        # Initialize lineage manager for artifact tracking
+        self.lineage_manager = LineageManager(self.memory)
+        
+        # Initialize bucket reader for artifact queries
+        self.bucket_reader = BucketReader(self.lineage_manager)
         
         # Initialize BridgeClient as canonical external service interface
         self.bridge_client = BridgeClient()
@@ -76,6 +85,9 @@ class Gateway:
         else:
             self.memory = SQLiteAdapter(DB_PATH)
         self.creator_router = CreatorRouter(self.memory)
+        
+        # Initialize replay engine after routing engine is available
+        self.replay_engine = None  # Will be initialized when needed
         # Validate module contracts for any module-like entries (modules under /modules should subclass BaseModule)
         for name, mod in list(self.agents.items()):
             # If the object exposes `process`, expect it to be a BaseModule
@@ -192,6 +204,10 @@ class Gateway:
             # Execute through routing engine
             from .routing_engine import RoutingEngine
             routing_engine = RoutingEngine(self.agents, self.memory)
+            
+            # Initialize replay engine if not already done
+            if self.replay_engine is None:
+                self.replay_engine = ReplayEngine(self.lineage_manager, routing_engine, self.memory)
             
             execution_result = routing_engine.execute_instruction(
                 instruction=instruction,

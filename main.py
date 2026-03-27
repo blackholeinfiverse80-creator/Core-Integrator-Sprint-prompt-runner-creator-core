@@ -314,6 +314,93 @@ async def system_logs_latest(limit: int = 50):
     except Exception as e:
         return {"error": str(e)}
 
+# NEW LINEAGE AND REPLAY ENDPOINTS
+
+@app.get("/lineage/{instruction_id}")
+async def get_instruction_lineage(instruction_id: str, request: Request):
+    """Get complete lineage for an instruction"""
+    try:
+        lineage = gateway.lineage_manager.get_instruction_lineage(instruction_id)
+        return lineage
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lineage retrieval failed: {str(e)}")
+
+@app.get("/artifacts/{artifact_id}")
+async def get_artifact(artifact_id: str, request: Request):
+    """Get artifact by ID"""
+    try:
+        artifact = gateway.bucket_reader.get_artifact_by_id(artifact_id)
+        if not artifact:
+            raise HTTPException(status_code=404, detail="Artifact not found")
+        return artifact
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Artifact retrieval failed: {str(e)}")
+
+@app.get("/artifacts/instruction/{instruction_id}")
+async def get_instruction_artifacts(instruction_id: str, request: Request):
+    """Get all artifacts for an instruction"""
+    try:
+        artifacts = gateway.bucket_reader.get_artifacts_by_instruction(instruction_id)
+        return {"instruction_id": instruction_id, "artifacts": artifacts, "count": len(artifacts)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Artifacts retrieval failed: {str(e)}")
+
+@app.post("/replay/{instruction_id}")
+async def replay_instruction(instruction_id: str, request: Request):
+    """Replay an instruction deterministically"""
+    try:
+        if gateway.replay_engine is None:
+            # Initialize replay engine if needed
+            from src.core.routing_engine import RoutingEngine
+            routing_engine = RoutingEngine(gateway.agents, gateway.memory)
+            gateway.replay_engine = gateway.replay_engine or gateway.__class__.ReplayEngine(gateway.lineage_manager, routing_engine, gateway.memory)
+        
+        replay_result = gateway.replay_engine.replay_instruction(instruction_id)
+        return replay_result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Replay failed: {str(e)}")
+
+@app.get("/replay/validate/{instruction_id}")
+async def validate_replay_capability(instruction_id: str, request: Request):
+    """Check if an instruction can be replayed"""
+    try:
+        if gateway.replay_engine is None:
+            from src.core.routing_engine import RoutingEngine
+            routing_engine = RoutingEngine(gateway.agents, gateway.memory)
+            from src.core.replay_engine import ReplayEngine
+            gateway.replay_engine = ReplayEngine(gateway.lineage_manager, routing_engine, gateway.memory)
+        
+        validation = gateway.replay_engine.validate_replay_capability(instruction_id)
+        return validation
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}")
+
+@app.get("/bucket/statistics")
+async def get_bucket_statistics(request: Request):
+    """Get Bucket storage statistics"""
+    try:
+        stats = gateway.bucket_reader.get_bucket_statistics()
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Statistics retrieval failed: {str(e)}")
+
+@app.get("/replay/statistics")
+async def get_replay_statistics(request: Request):
+    """Get replay system statistics"""
+    try:
+        if gateway.replay_engine is None:
+            from src.core.routing_engine import RoutingEngine
+            routing_engine = RoutingEngine(gateway.agents, gateway.memory)
+            from src.core.replay_engine import ReplayEngine
+            gateway.replay_engine = ReplayEngine(gateway.lineage_manager, routing_engine, gateway.memory)
+        
+        stats = gateway.replay_engine.get_replay_statistics()
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Replay statistics failed: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8001))

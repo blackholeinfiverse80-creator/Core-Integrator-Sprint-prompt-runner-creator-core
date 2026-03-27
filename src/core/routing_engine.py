@@ -8,6 +8,7 @@ from typing import Dict, Any
 from .creator_core_parser import RoutingDecision
 from .execution_envelope import ExecutionEnvelopeManager
 from .hash_generation import ExecutionHashGenerator
+from .lineage_manager import LineageManager
 from ..utils.logger import setup_logger
 
 class RoutingEngine:
@@ -19,6 +20,7 @@ class RoutingEngine:
         self.logger = setup_logger(__name__)
         self.envelope_manager = ExecutionEnvelopeManager()
         self.hash_generator = ExecutionHashGenerator()
+        self.lineage_manager = LineageManager(memory)
     
     def execute_instruction(self, instruction: Dict[str, Any], routing_decision: RoutingDecision, start_time: float) -> Dict[str, Any]:
         """
@@ -168,30 +170,85 @@ class RoutingEngine:
         )
     
     def _emit_to_bucket(self, instruction: Dict[str, Any], execution_result: Dict[str, Any], envelope):
-        """Emit execution artifact to Bucket"""
+        """Emit structured artifacts to Bucket with lineage"""
         try:
-            bucket_artifact = {
-                "artifact_type": "execution_result",
-                "source": "core_integrator",
-                "instruction_id": instruction.get('instruction_id'),
-                "execution_id": envelope.execution_id,
-                "target_product": instruction.get('target_product'),
-                "payload": execution_result,
-                "hash": envelope.output_hash,
-                "timestamp": envelope.timestamp_utc
-            }
+            instruction_id = instruction.get('instruction_id')
+            execution_id = envelope.execution_id
+            parent_instruction_id = instruction.get('parent_instruction_id')
             
-            # Log bucket emission (actual bucket integration would go here)
+            # Create blueprint artifact (instruction)
+            blueprint_artifact = self.lineage_manager.create_artifact(
+                artifact_type="blueprint",
+                instruction_id=instruction_id,
+                execution_id=execution_id,
+                source_module_id="creator_core",
+                payload={
+                    "instruction": instruction,
+                    "routing_decision": {
+                        "target_product": instruction.get('target_product'),
+                        "intent_type": instruction.get('intent_type')
+                    }
+                },
+                parent_instruction_id=parent_instruction_id,
+                metadata={
+                    "target_product": instruction.get('target_product'),
+                    "intent_type": instruction.get('intent_type'),
+                    "schema_version": instruction.get('schema_version', '1.0.0')
+                }
+            )
+            
+            # Create execution artifact (envelope)
+            execution_artifact = self.lineage_manager.create_artifact(
+                artifact_type="execution",
+                instruction_id=instruction_id,
+                execution_id=execution_id,
+                source_module_id=envelope.module_id,
+                payload={
+                    "execution_envelope": execution_result.get('execution_envelope', {}),
+                    "input_hash": envelope.input_hash,
+                    "output_hash": envelope.output_hash
+                },
+                parent_instruction_id=parent_instruction_id,
+                parent_hash=blueprint_artifact["artifact_hash"],
+                metadata={
+                    "execution_duration_ms": envelope.execution_duration_ms,
+                    "status": envelope.status,
+                    "module_id": envelope.module_id
+                }
+            )
+            
+            # Create result artifact (output)
+            result_artifact = self.lineage_manager.create_artifact(
+                artifact_type="result",
+                instruction_id=instruction_id,
+                execution_id=execution_id,
+                source_module_id=envelope.module_id,
+                payload=execution_result,
+                parent_instruction_id=parent_instruction_id,
+                parent_hash=execution_artifact["artifact_hash"],
+                metadata={
+                    "target_product": instruction.get('target_product'),
+                    "final_status": execution_result.get('status'),
+                    "result_type": "execution_output"
+                }
+            )
+            
+            # Log structured bucket emission
             self.logger.info(
-                "Artifact emitted to Bucket",
+                "Structured artifacts emitted to Bucket",
                 extra={
-                    "event_type": "bucket.artifact_stored",
-                    "instruction_id": instruction.get('instruction_id'),
-                    "execution_id": envelope.execution_id,
-                    "artifact_type": "execution_result",
+                    "event_type": "bucket.lineage_artifacts_stored",
+                    "instruction_id": instruction_id,
+                    "execution_id": execution_id,
+                    "artifacts": {
+                        "blueprint": blueprint_artifact["artifact_id"],
+                        "execution": execution_artifact["artifact_id"],
+                        "result": result_artifact["artifact_id"]
+                    },
+                    "lineage_chain_length": 3,
                     "telemetry_target": "bucket"
                 }
             )
             
         except Exception as e:
-            self.logger.error(f"Bucket emission failed: {e}")
+            self.logger.error(f"Structured bucket emission failed: {e}")
