@@ -139,3 +139,8 @@ For multi-source validation testing, use these real Core event payloads:
 ```
 
 These payloads can be sent to `/core/update` for admission + provenance logging verification.
+
+## Submission Rule
+
+All submissions MUST include REVIEW_PACKET.md.
+Submissions without this file will not be reviewed or accepted.
