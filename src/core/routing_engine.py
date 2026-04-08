@@ -9,6 +9,7 @@ from .creator_core_parser import RoutingDecision
 from .execution_envelope import ExecutionEnvelopeManager
 from .hash_generation import ExecutionHashGenerator
 from .lineage_manager import LineageManager
+from .global_trace_manager import GlobalTraceManager
 from ..utils.logger import setup_logger
 
 class RoutingEngine:
@@ -21,6 +22,7 @@ class RoutingEngine:
         self.envelope_manager = ExecutionEnvelopeManager()
         self.hash_generator = ExecutionHashGenerator()
         self.lineage_manager = LineageManager(memory)
+        self.trace_manager = GlobalTraceManager()
     
     def execute_instruction(self, instruction: Dict[str, Any], routing_decision: RoutingDecision, start_time: float) -> Dict[str, Any]:
         """

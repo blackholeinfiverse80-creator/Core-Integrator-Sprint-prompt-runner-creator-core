@@ -1,6 +1,6 @@
 """
 Lineage Manager
-Tracks instruction → execution → artifact relationships and maintains lineage chains
+Tracks instruction → execution → artifact relationships with BHIV global trace alignment
 """
 
 import uuid
@@ -8,6 +8,8 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Tuple
+from .global_trace_manager import GlobalTraceManager
+from .artifact_schema_validator import ArtifactSchemaValidator
 from ..utils.logger import setup_logger
 
 class LineageManager:
@@ -17,6 +19,8 @@ class LineageManager:
         self.memory = memory
         self.logger = setup_logger(__name__)
         self.lineage_store = {}  # In-memory lineage tracking
+        self.trace_manager = GlobalTraceManager()
+        self.schema_validator = ArtifactSchemaValidator()
     
     def generate_artifact_id(self) -> str:
         """Generate unique artifact ID"""
@@ -36,20 +40,22 @@ class LineageManager:
         payload: Dict[str, Any],
         parent_instruction_id: Optional[str] = None,
         parent_hash: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        trace_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Create a structured artifact with lineage information
+        Create a structured artifact with BHIV global trace alignment
         
         Args:
             artifact_type: Type of artifact (blueprint, execution, result)
             instruction_id: Creator Core instruction ID
-            execution_id: Execution ID from routing engine
+            execution_id: Global execution ID
             source_module_id: Module that generated this artifact
             payload: Artifact payload data
             parent_instruction_id: Parent instruction ID for chaining
             parent_hash: Hash of parent artifact for lineage
             metadata: Additional metadata
+            trace_id: Global trace ID for cross-system tracking
             
         Returns:
             Complete artifact dictionary
@@ -57,6 +63,20 @@ class LineageManager:
         artifact_id = self.generate_artifact_id()
         artifact_hash = self.compute_artifact_hash(payload)
         timestamp = datetime.now(timezone.utc).isoformat()
+        
+        # Ensure trace_id is present (BHIV requirement)
+        if not trace_id:
+            # Try to get from existing trace or create new one
+            trace_context = None
+            for tid, ctx in self.trace_manager.active_traces.items():
+                if ctx["instruction_id"] == instruction_id:
+                    trace_id = tid
+                    trace_context = ctx
+                    break
+            
+            if not trace_id:
+                trace_ids = self.trace_manager.start_trace(instruction_id, "lineage_manager")
+                trace_id = trace_ids["trace_id"]
         
         # Determine lineage depth
         lineage_depth = 0
@@ -71,6 +91,7 @@ class LineageManager:
             "instruction_id": instruction_id,
             "parent_instruction_id": parent_instruction_id,
             "execution_id": execution_id,
+            "trace_id": trace_id,  # BHIV global trace requirement
             "source_module_id": source_module_id,
             "payload": payload,
             "artifact_hash": artifact_hash,
@@ -80,7 +101,14 @@ class LineageManager:
             "metadata": metadata or {}
         }
         
-        # Store artifact
+        # BHIV Schema Validation (STRICT)
+        validation_result = self.schema_validator.validate_artifact(artifact)
+        if not validation_result["valid"]:
+            error_msg = f"Artifact schema validation failed: {validation_result['issues']}"
+            self.logger.error(error_msg)
+            raise ValueError(f"Schema validation failed for {artifact_type}: {validation_result['issues']}")
+        
+        # Store artifact (Bucket contract: append-only, immutable)
         self._store_artifact(artifact)
         
         # Update lineage tracking
@@ -93,7 +121,9 @@ class LineageManager:
                 "artifact_id": artifact_id,
                 "instruction_id": instruction_id,
                 "execution_id": execution_id,
+                "trace_id": trace_id,  # BHIV trace linking
                 "artifact_type": artifact_type,
+                "artifact_hash": artifact_hash,  # BHIV trace linking
                 "lineage_depth": lineage_depth,
                 "telemetry_target": "insightflow"
             }

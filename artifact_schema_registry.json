@@ -1,0 +1,211 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BHIV Artifact Schema Registry",
+  "description": "Strict schema validation for all artifact types in BHIV ecosystem",
+  "version": "1.0.0",
+  "artifact_types": {
+    "blueprint": {
+      "description": "Creator Core instruction artifact",
+      "required": [
+        "artifact_id",
+        "artifact_type", 
+        "instruction_id",
+        "execution_id",
+        "trace_id",
+        "source_module_id",
+        "payload",
+        "artifact_hash",
+        "timestamp"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "pattern": "^artifact_[a-f0-9]{16}$"
+        },
+        "artifact_type": {
+          "type": "string",
+          "enum": ["blueprint"]
+        },
+        "instruction_id": {
+          "type": "string",
+          "description": "Global Creator Core instruction identifier"
+        },
+        "execution_id": {
+          "type": "string", 
+          "pattern": "^exec_[a-f0-9]{16}$",
+          "description": "Global execution identifier"
+        },
+        "trace_id": {
+          "type": "string",
+          "pattern": "^trace_[a-f0-9]{16}$",
+          "description": "Global trace identifier for cross-system tracking"
+        },
+        "source_module_id": {
+          "type": "string",
+          "enum": ["creator_core"]
+        },
+        "payload": {
+          "type": "object",
+          "required": ["instruction", "routing_decision"],
+          "properties": {
+            "instruction": {
+              "type": "object",
+              "required": ["instruction_id", "origin", "intent_type", "target_product", "payload", "schema_version"],
+              "properties": {
+                "origin": {"enum": ["creator_core"]},
+                "target_product": {"enum": ["content", "finance", "workflow", "education"]},
+                "intent_type": {"enum": ["generate", "analyze", "process", "validate"]}
+              }
+            },
+            "routing_decision": {
+              "type": "object",
+              "required": ["target_product", "module_path", "execution_intent"]
+            }
+          }
+        },
+        "artifact_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "parent_hash": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lineage_depth": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "execution": {
+      "description": "Execution envelope artifact",
+      "required": [
+        "artifact_id",
+        "artifact_type",
+        "instruction_id", 
+        "execution_id",
+        "trace_id",
+        "source_module_id",
+        "payload",
+        "artifact_hash",
+        "parent_hash",
+        "timestamp"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "pattern": "^artifact_[a-f0-9]{16}$"
+        },
+        "artifact_type": {
+          "type": "string",
+          "enum": ["execution"]
+        },
+        "source_module_id": {
+          "type": "string",
+          "enum": ["sample_text", "finance", "education", "creator", "video"]
+        },
+        "payload": {
+          "type": "object",
+          "required": ["execution_envelope", "input_hash", "output_hash"],
+          "properties": {
+            "execution_envelope": {
+              "type": "object",
+              "required": ["execution_id", "module_id", "input_hash", "output_hash", "semantic_hash"]
+            }
+          }
+        },
+        "parent_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Must link to blueprint artifact"
+        }
+      }
+    },
+    "result": {
+      "description": "Execution result artifact",
+      "required": [
+        "artifact_id",
+        "artifact_type",
+        "instruction_id",
+        "execution_id", 
+        "trace_id",
+        "source_module_id",
+        "payload",
+        "artifact_hash",
+        "parent_hash",
+        "timestamp"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "pattern": "^artifact_[a-f0-9]{16}$"
+        },
+        "artifact_type": {
+          "type": "string",
+          "enum": ["result"]
+        },
+        "payload": {
+          "type": "object",
+          "required": ["status", "result"],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["success", "error", "partial"]
+            },
+            "result": {
+              "type": "object"
+            }
+          }
+        },
+        "parent_hash": {
+          "type": "string", 
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Must link to execution artifact"
+        }
+      }
+    }
+  },
+  "bucket_contract": {
+    "description": "BHIV Bucket storage contract",
+    "rules": [
+      "append-only: no updates or deletes allowed",
+      "immutable: artifacts cannot be modified after creation",
+      "hash-linked: every artifact must link to parent via hash",
+      "trace-enabled: all artifacts must include trace_id",
+      "schema-validated: all artifacts must pass schema validation"
+    ],
+    "required_fields_all_artifacts": [
+      "artifact_id",
+      "artifact_type", 
+      "instruction_id",
+      "execution_id",
+      "trace_id",
+      "source_module_id",
+      "payload",
+      "artifact_hash",
+      "timestamp"
+    ]
+  },
+  "insightflow_contract": {
+    "description": "InsightFlow telemetry requirements",
+    "required_trace_fields": [
+      "instruction_id",
+      "execution_id", 
+      "trace_id",
+      "artifact_hash"
+    ],
+    "event_chain": [
+      "instruction.received",
+      "instruction.validated", 
+      "execution.started",
+      "artifact.blueprint_created",
+      "artifact.execution_created",
+      "artifact.result_created",
+      "execution.completed"
+    ]
+  }
+}

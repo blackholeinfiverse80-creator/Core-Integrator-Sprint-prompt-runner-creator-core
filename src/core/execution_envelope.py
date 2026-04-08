@@ -27,9 +27,9 @@ class ExecutionEnvelope:
     semantic_hash: str
     execution_duration_ms: float
     status: str
-    # NEW: Instruction metadata for Creator Core integration
-    instruction_id: Optional[str] = None
-    parent_instruction_id: Optional[str] = None
+    # NEW: Global trace metadata for BHIV alignment
+    trace_id: Optional[str] = None
+    global_execution_id: Optional[str] = None
 
 class ExecutionEnvelopeGenerator:
     """Generates execution envelopes for module executions"""
@@ -71,7 +71,9 @@ class ExecutionEnvelopeGenerator:
         parent_execution_id: Optional[str] = None,
         execution_duration_ms: float = 0.0,
         instruction_id: Optional[str] = None,
-        parent_instruction_id: Optional[str] = None
+        parent_instruction_id: Optional[str] = None,
+        trace_id: Optional[str] = None,
+        global_execution_id: Optional[str] = None
     ) -> ExecutionEnvelope:
         """
         Create execution envelope for a module execution
@@ -90,7 +92,7 @@ class ExecutionEnvelopeGenerator:
         Returns:
             ExecutionEnvelope instance
         """
-        execution_id = self.generate_execution_id()
+        execution_id = global_execution_id or self.generate_execution_id()
         timestamp_utc = datetime.now(timezone.utc).isoformat()
         
         input_hash = self.compute_input_hash(input_data)
@@ -115,7 +117,9 @@ class ExecutionEnvelopeGenerator:
             execution_duration_ms=execution_duration_ms,
             status=status,
             instruction_id=instruction_id,
-            parent_instruction_id=parent_instruction_id
+            parent_instruction_id=parent_instruction_id,
+            trace_id=trace_id,
+            global_execution_id=global_execution_id
         )
     
     def envelope_to_dict(self, envelope: ExecutionEnvelope) -> Dict[str, Any]:
@@ -219,7 +223,9 @@ class ExecutionEnvelopeManager:
         parent_execution_id: Optional[str] = None,
         execution_duration_ms: float = 0.0,
         instruction_id: Optional[str] = None,
-        parent_instruction_id: Optional[str] = None
+        parent_instruction_id: Optional[str] = None,
+        trace_id: Optional[str] = None,
+        global_execution_id: Optional[str] = None
     ) -> ExecutionEnvelope:
         """
         Create complete envelope immediately (for simple cases)
@@ -238,7 +244,9 @@ class ExecutionEnvelopeManager:
             parent_execution_id=parent_execution_id,
             execution_duration_ms=execution_duration_ms,
             instruction_id=instruction_id,
-            parent_instruction_id=parent_instruction_id
+            parent_instruction_id=parent_instruction_id,
+            trace_id=trace_id,
+            global_execution_id=global_execution_id
         )
     
     def get_active_executions(self) -> Dict[str, Dict[str, Any]]:
