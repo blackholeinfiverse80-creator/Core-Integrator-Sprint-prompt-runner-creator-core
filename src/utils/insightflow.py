@@ -86,68 +86,122 @@ def make_lineage_event(
     )
 
 
-def make_artifact_event(
+def make_artifact_graph_event(
+    stage: str,
+    trace_id: str,
     artifact_id: str,
-    artifact_type: str,
-    instruction_id: str,
-    execution_id: str,
-    artifact_hash: str,
-    parent_hash: Optional[str] = None,
-    lineage_depth: int = 0,
-    status: str = "created",
+    parent_artifact_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+    instruction_id: Optional[str] = None,
+    component: str = "artifact_graph",
+    status: str = "success",
     details: Dict[str, Any] = None,
     timestamp: Optional[datetime] = None
 ) -> Dict[str, Any]:
     """
-    Create InsightFlow event for artifact creation with full lineage context
+    Create InsightFlow event for artifact graph operations with full trace context
     
     Args:
-        artifact_id: Unique artifact identifier
-        artifact_type: Type of artifact (blueprint, execution, result)
-        instruction_id: Creator Core instruction ID
-        execution_id: Execution ID
-        artifact_hash: Artifact hash
-        parent_hash: Parent artifact hash for lineage
-        lineage_depth: Depth in lineage chain
-        status: Artifact status
-        details: Additional details
+        stage: Artifact stage (instruction/blueprint/execution/result)
+        trace_id: Global trace identifier
+        artifact_id: Current artifact identifier
+        parent_artifact_id: Parent artifact identifier for linking
+        session_id: Session identifier
+        instruction_id: Original instruction identifier
+        component: Component generating the event
+        status: Event status
+        details: Additional event details
         timestamp: Event timestamp
         
     Returns:
-        InsightFlow event for artifact with lineage
+        InsightFlow event with complete artifact graph context
     """
     event_details = details or {}
     
-    # Add artifact-specific fields
+    # Add mandatory artifact graph fields
     event_details.update({
+        "stage": stage,
+        "trace_id": trace_id,
         "artifact_id": artifact_id,
-        "artifact_type": artifact_type,
-        "artifact_hash": artifact_hash,
-        "lineage_depth": lineage_depth
+        "session_id": session_id,
+        "instruction_id": instruction_id
     })
     
-    # Add parent relationship if exists
-    if parent_hash:
-        event_details["parent_hash"] = parent_hash
+    # Add parent linking if provided
+    if parent_artifact_id:
+        event_details["parent_artifact_id"] = parent_artifact_id
     
-    # Add full lineage context
-    event_details["lineage_context"] = {
-        "instruction_id": instruction_id,
-        "execution_id": execution_id,
-        "artifact_chain": {
-            "current_hash": artifact_hash,
-            "parent_hash": parent_hash,
-            "depth": lineage_depth
-        }
+    # Add artifact graph context for sovereign memory tracing
+    event_details["artifact_graph_context"] = {
+        "trace_id": trace_id,
+        "artifact_id": artifact_id,
+        "parent_artifact_id": parent_artifact_id,
+        "stage": stage,
+        "session_id": session_id,
+        "reconstruction_ready": True
     }
     
-    return make_lineage_event(
-        event_type="artifact.created",
-        instruction_id=instruction_id,
-        execution_id=execution_id,
-        artifact_hash=artifact_hash,
-        component="bucket_system",
+    return make_event(
+        event_type=f"artifact_graph.{stage}",
+        component=component,
         status=status,
+        details=event_details,
+        timestamp=timestamp
+    )
+
+
+def make_reconstruction_event(
+    reconstruction_type: str,
+    trace_id: str,
+    session_id: Optional[str] = None,
+    artifacts_used: int = 0,
+    reconstruction_status: str = "completed",
+    component: str = "core_reconstruction",
+    details: Dict[str, Any] = None,
+    timestamp: Optional[datetime] = None
+) -> Dict[str, Any]:
+    """
+    Create InsightFlow event for state reconstruction operations
+    
+    Args:
+        reconstruction_type: Type of reconstruction (trace/session/artifact)
+        trace_id: Global trace identifier
+        session_id: Session identifier (if applicable)
+        artifacts_used: Number of artifacts used in reconstruction
+        reconstruction_status: Status of reconstruction
+        component: Component performing reconstruction
+        details: Additional reconstruction details
+        timestamp: Event timestamp
+        
+    Returns:
+        InsightFlow event for reconstruction tracking
+    """
+    event_details = details or {}
+    
+    # Add reconstruction context
+    event_details.update({
+        "reconstruction_type": reconstruction_type,
+        "trace_id": trace_id,
+        "artifacts_used": artifacts_used,
+        "reconstruction_status": reconstruction_status
+    })
+    
+    if session_id:
+        event_details["session_id"] = session_id
+    
+    # Add sovereign memory context
+    event_details["sovereign_memory_context"] = {
+        "reconstruction_type": reconstruction_type,
+        "trace_id": trace_id,
+        "session_id": session_id,
+        "artifacts_used": artifacts_used,
+        "memory_system": "sovereign"
+    }
+    
+    return make_event(
+        event_type=f"reconstruction.{reconstruction_type}",
+        component=component,
+        status=reconstruction_status,
         details=event_details,
         timestamp=timestamp
     )

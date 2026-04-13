@@ -1,0 +1,233 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BHIV Artifact Graph Schema - Sovereign Memory System",
+  "description": "4 canonical artifact types for deterministic state reconstruction",
+  "version": "3.0.0",
+  "artifact_types": {
+    "instruction": {
+      "description": "Raw user instruction - immutable input",
+      "required": [
+        "artifact_id",
+        "artifact_type", 
+        "trace_id",
+        "session_id",
+        "instruction_id",
+        "payload",
+        "artifact_hash",
+        "timestamp",
+        "schema_version"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "pattern": "^artifact_instruction_[a-f0-9]{16}$"
+        },
+        "artifact_type": {
+          "type": "string",
+          "enum": ["instruction"]
+        },
+        "trace_id": {
+          "type": "string",
+          "pattern": "^trace_[a-f0-9]{16}$"
+        },
+        "session_id": {
+          "type": "string",
+          "pattern": "^session_[a-f0-9]{16}$"
+        },
+        "instruction_id": {
+          "type": "string",
+          "description": "Original instruction identifier"
+        },
+        "payload": {
+          "type": "object",
+          "description": "Raw instruction payload - immutable"
+        },
+        "artifact_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "prev_hash": {
+          "type": ["string", "null"],
+          "description": "Previous instruction in session chain"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "schema_version": {
+          "type": "string",
+          "enum": ["3.0.0"]
+        }
+      }
+    },
+    "blueprint": {
+      "description": "Parsed execution plan from instruction",
+      "required": [
+        "artifact_id",
+        "artifact_type",
+        "trace_id", 
+        "session_id",
+        "instruction_id",
+        "input_ref",
+        "payload",
+        "artifact_hash",
+        "timestamp",
+        "schema_version"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "pattern": "^artifact_blueprint_[a-f0-9]{16}$"
+        },
+        "artifact_type": {
+          "type": "string",
+          "enum": ["blueprint"]
+        },
+        "input_ref": {
+          "type": "string",
+          "description": "Reference to instruction artifact",
+          "pattern": "^artifact_instruction_[a-f0-9]{16}$"
+        },
+        "payload": {
+          "type": "object",
+          "required": ["routing_decision", "execution_plan"],
+          "properties": {
+            "routing_decision": {
+              "type": "object",
+              "required": ["target_product", "adapter_module", "execution_intent"]
+            },
+            "execution_plan": {
+              "type": "object",
+              "required": ["steps", "validation_rules"]
+            }
+          }
+        }
+      }
+    },
+    "execution": {
+      "description": "Execution envelope and runtime state",
+      "required": [
+        "artifact_id",
+        "artifact_type",
+        "trace_id",
+        "session_id", 
+        "instruction_id",
+        "blueprint_ref",
+        "execution_id",
+        "payload",
+        "artifact_hash",
+        "timestamp",
+        "schema_version"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "pattern": "^artifact_execution_[a-f0-9]{16}$"
+        },
+        "artifact_type": {
+          "type": "string",
+          "enum": ["execution"]
+        },
+        "blueprint_ref": {
+          "type": "string",
+          "description": "Reference to blueprint artifact",
+          "pattern": "^artifact_blueprint_[a-f0-9]{16}$"
+        },
+        "execution_id": {
+          "type": "string",
+          "pattern": "^exec_[a-f0-9]{16}$"
+        },
+        "payload": {
+          "type": "object",
+          "required": ["execution_envelope", "runtime_state"],
+          "properties": {
+            "execution_envelope": {
+              "type": "object",
+              "required": ["input_hash", "output_hash", "semantic_hash"]
+            },
+            "runtime_state": {
+              "type": "object",
+              "required": ["module_id", "execution_duration_ms", "status"]
+            }
+          }
+        }
+      }
+    },
+    "result": {
+      "description": "Final execution output - immutable result",
+      "required": [
+        "artifact_id",
+        "artifact_type",
+        "trace_id",
+        "session_id",
+        "instruction_id", 
+        "execution_ref",
+        "payload",
+        "artifact_hash",
+        "timestamp",
+        "schema_version"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "pattern": "^artifact_result_[a-f0-9]{16}$"
+        },
+        "artifact_type": {
+          "type": "string",
+          "enum": ["result"]
+        },
+        "execution_ref": {
+          "type": "string",
+          "description": "Reference to execution artifact",
+          "pattern": "^artifact_execution_[a-f0-9]{16}$"
+        },
+        "payload": {
+          "type": "object",
+          "required": ["status", "result", "output_metadata"],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["success", "error", "partial"]
+            },
+            "result": {
+              "type": "object",
+              "description": "Final execution result - immutable"
+            },
+            "output_metadata": {
+              "type": "object",
+              "required": ["completion_time", "determinism_hash"]
+            }
+          }
+        }
+      }
+    }
+  },
+  "artifact_chain_contract": {
+    "description": "Mandatory artifact chain for state reconstruction",
+    "chain_sequence": [
+      "instruction → blueprint → execution → result"
+    ],
+    "linking_rules": [
+      "blueprint.input_ref MUST reference instruction.artifact_id",
+      "execution.blueprint_ref MUST reference blueprint.artifact_id", 
+      "result.execution_ref MUST reference execution.artifact_id",
+      "All artifacts MUST share same trace_id and session_id",
+      "Hash chain MUST be verifiable for reconstruction"
+    ],
+    "reconstruction_requirements": [
+      "Any artifact chain MUST be reconstructable from Bucket",
+      "Core MUST perform ALL reconstruction logic",
+      "Bucket provides ONLY raw artifact retrieval",
+      "Hash integrity MUST be maintained throughout chain"
+    ]
+  },
+  "session_contract": {
+    "description": "Multi-instruction session management",
+    "session_rules": [
+      "session_id links multiple instruction chains",
+      "prev_hash creates instruction ordering within session",
+      "Session reconstruction MUST maintain temporal order",
+      "Cross-instruction dependencies tracked via session_id"
+    ]
+  }
+}
