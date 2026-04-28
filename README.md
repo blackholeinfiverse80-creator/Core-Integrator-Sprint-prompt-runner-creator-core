@@ -1,146 +1,313 @@
-# Core Integrator - Sovereign Certified
+# BHIV Full Integration Pipeline
 
+**Status**: ✅ COMPLETED - Production Ready  
 **Version**: 1.0.0  
-**Status**: SOVEREIGN CERTIFIED - PRODUCTION READY  
-**Integration**: BridgeClient v1.0.0 Canonical Surface  
-**Certification Date**: March 5, 2026  
-**Live Testing**: COMPLETED WITH REAL EXECUTION PROOFS
+**Integration**: Prompt Runner → Creator Core → BHIV Core → Bucket  
 
-## Quick Start
+## Overview
 
-```bash
-git clone https://github.com/blackholeinfiverse80-creator/FINAL-INTEGRATION-ROLE-COMPLETION-TASK.git
-cd FINAL-INTEGRATION-ROLE-COMPLETION-TASK
-pip install -r requirements.txt
-cp .env.example .env
-python main.py
-```
-
-**Server**: http://localhost:8001  
-**Health**: http://localhost:8001/system/health  
-**Tests**: `pytest tests/test_ci_safe.py -v`
-
-## Core Features
-
-- **SSPL Phase III Security**: Ed25519 signatures, nonce replay protection
-- **Multi-Database**: MongoDB Atlas (primary), SQLite (fallback)
-- **BridgeClient**: Canonical CreatorCore integration surface v1.0.0
-- **InsightFlow Telemetry**: Structured events (heartbeat, integration_ready, degraded_alert)
-- **Agent System**: Finance, Education, Creator modules
-- **Deterministic Feedback**: generation_id → interaction mapping
-
-## API Endpoints
-
-- `POST /core` - Main processing (SSPL headers required when enabled)
-- `POST /feedback` - Canonical feedback schema
-- `GET /get-context?user_id=USER` - User context retrieval
-- `GET /system/health` - Health with InsightFlow events
-- `GET /system/diagnostics` - Integration readiness with score
-
-## Configuration
-
-```bash
-# Security
-SSPL_ENABLED=true
-
-# Database  
-USE_MONGODB=true
-MONGODB_CONNECTION_STRING=mongodb+srv://...
-
-# External Services
-INTEGRATOR_USE_NOOPUR=true
-NOOPUR_BASE_URL=http://localhost:5001
-```
-
-## Integration Contacts
-
-- **Ashmit**: Ecosystem Integration → `documentation/DEPLOYMENT_GUIDE.md`
-- **Noopur**: Backend API → `documentation/NOOPUR_API_CONTRACT.md`  
-- **Sankalp**: Telemetry → `documentation/INSIGHTFLOW_INTEGRATION.md`
-
-## Sovereign Certification Status
-
-**🏆 CERTIFICATION COMPLETE**: March 5, 2026
-
-### Live Execution Proofs Captured
-- **Multi-Module Execution**: ✅ VERIFIED (sample_text, finance modules operational)
-- **BridgeClient Integration**: ✅ VERIFIED (canonical surface v1.0.0 functional)
-- **Bucket Persistence**: ✅ VERIFIED (artifact storage and retrieval confirmed)
-- **Live Deployment**: ✅ VERIFIED (local server operational, production ready)
-
-### Certification Files
-- `sovereign_module_execution_proof.json` - Real execution capture
-- `bridgeclient_live_execution_proof.json` - Integration surface proof
-- `bucket_persistence_proof.json` - Storage verification
-- `live_deployment_execution_proof.json` - Deployment confirmation
-- `SOVEREIGN_CORE_INTEGRATOR_CERTIFIED.md` - Official freeze declaration
-
-### System Status: FROZEN
-**No further logic changes permitted until demo**
-
-## Production Status
-
-- ✅ CI-safe test suite (11/11 passing)
-- ✅ BridgeClient canonical integration
-- ✅ InsightFlow telemetry active
-- ✅ Multi-database fallback
-- ✅ SSPL Phase III security
-- ✅ Deterministic feedback mapping
-- ✅ Machine-consumable signals
-- ✅ **SOVEREIGN CERTIFIED** - Live execution verified
-- ✅ **SYSTEM FROZEN** - Production deployment ready
+This is the complete BHIV integration that converts separate working components into ONE unified, production-ready pipeline. The system provides a deterministic, plug-and-play infrastructure module usable across TTG, TTV, and all BHIV products.
 
 ## Architecture
 
 ```
-User → Gateway → BridgeClient → CreatorCore
-     ↓
-   Memory (MongoDB/SQLite) + InsightFlow Events
+User Prompt 
+    ↓
+Prompt Runner (8003) ──→ Structured Instruction
+    ↓
+Creator Core (8000) ──→ Blueprint Envelope  
+    ↓
+BHIV Core (8001) ──→ Execution Result
+    ↓
+Bucket (8005) ──→ Stored Artifacts
+    ↓
+Integration Bridge (8004) ──→ Final Result
 ```
 
-**Core Files**:
-- `main.py` - FastAPI application
-- `src/core/gateway.py` - Central routing
-- `src/utils/bridge_client.py` - CreatorCore integration
-- `src/utils/insightflow.py` - Telemetry generator
-- `handover_creatorcore_final.md` - Team handover
+## Components
 
-**Integration Ready**: All systems operational, sovereign certified, system frozen until demo.
+| Component | Port | Purpose | Status |
+|-----------|------|---------|--------|
+| **Prompt Runner** | 8003 | Convert prompts to structured instructions | ✅ Active |
+| **Creator Core** | 8000 | Generate blueprints from instructions | ✅ Active |
+| **BHIV Core** | 8001 | Execute blueprints through modules | ✅ Active |
+| **Integration Bridge** | 8004 | Orchestrate full pipeline | ✅ Active |
+| **BHIV Bucket** | 8005 | Store and retrieve artifacts | ✅ Active |
 
-## Gated Bridge Integration
+## Quick Start
 
-For multi-source validation testing, use these real Core event payloads:
+### 1. Start All Components
 
-**Core Endpoint**: `http://localhost:8001/core`
+```bash
+# Option A: Use startup script (recommended)
+python start_bhiv_pipeline.py
 
-**Sample Payload**:
+# Option B: Manual startup (5 terminals)
+# Terminal 1: Prompt Runner
+cd prompt-runner01
+python run_server.py 8003
+
+# Terminal 2: Creator Core
+cd creator-core/Core-Integrator-Sprint-1.1
+python main.py
+
+# Terminal 3: BHIV Core
+python -m uvicorn main:app --host 0.0.0.0 --port 8001
+
+# Terminal 4: Integration Bridge
+python integration_bridge.py
+
+# Terminal 5: Bucket
+python bhiv_bucket.py
+```
+
+### 2. Test the Pipeline
+
+```bash
+# Quick test
+python test_integration.py
+
+# Full validation
+python validate_full_integration.py
+
+# Manual test
+curl -X POST http://localhost:8004/pipeline/execute \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Design a residential building for Mumbai"}'
+```
+
+## API Endpoints
+
+### Integration Bridge (Port 8004)
+
+- `POST /pipeline/execute` - Execute full pipeline
+- `GET /pipeline/health` - Check all component health  
+- `GET /pipeline/replay/{trace_id}` - Replay from trace ID
+
+### BHIV Bucket (Port 8005)
+
+- `POST /bucket/store` - Store artifact
+- `GET /bucket/artifact/{artifact_id}` - Get artifact by ID
+- `GET /bucket/trace/{trace_id}` - Get all artifacts for trace
+- `GET /bucket/stats` - Get bucket statistics
+
+## Pipeline Flow
+
+### Input
 ```json
 {
-  "module": "sample_text",
-  "intent": "generate",
-  "user_id": "gated_bridge_test",
-  "data": {
-    "text": "Gated Bridge multi-source validation test payload"
+  "prompt": "Design a residential building for a 1000 sqft plot in Mumbai"
+}
+```
+
+### Output
+```json
+{
+  "status": "success",
+  "trace_id": "trace_abc123def456",
+  "artifact_chain": {
+    "A1_instruction": "instruction_12345678",
+    "A2_blueprint": "blueprint_87654321", 
+    "A3_execution": "execution_11223344",
+    "A4_result": "result_55667788"
+  },
+  "pipeline_result": {
+    "original_prompt": "Design a residential building...",
+    "pipeline_status": "completed",
+    "deterministic_hash": "a1b2c3d4e5f67890"
   }
 }
 ```
 
-**Finance Module Payload**:
-```json
-{
-  "module": "finance",
-  "intent": "generate", 
-  "user_id": "gated_bridge_test",
-  "data": {
-    "report_type": "validation_test",
-    "period": "Q1 2026"
-  }
-}
+## Artifact Chain (A1 → A4)
+
+| Artifact | Type | Description |
+|----------|------|-------------|
+| **A1** | Instruction | Structured instruction from Prompt Runner |
+| **A2** | Blueprint | Blueprint envelope from Creator Core |
+| **A3** | Execution | Execution result from BHIV Core |
+| **A4** | Result | Final assembled result |
+
+## Features
+
+### ✅ Deterministic Processing
+- Same input always produces same deterministic hash
+- Consistent results across multiple runs
+- Hash-based validation for replay
+
+### ✅ Artifact Traceability  
+- Complete A1→A4 chain with trace_id
+- Immutable artifact storage in bucket
+- Full pipeline reconstruction capability
+
+### ✅ Replay & Reconstruction
+- Replay pipeline from any trace_id
+- Reconstruct results from stored artifacts
+- Determinism validation across replays
+
+### ✅ Health Monitoring
+- Component status checking
+- Pipeline health endpoints
+- Graceful degradation handling
+
+### ✅ TTG/TTV Integration
+- Plug-and-play module design
+- Standard input/output interfaces
+- No internal leakage between products
+
+## Validation
+
+The system includes comprehensive validation:
+
+```bash
+python validate_full_integration.py
 ```
 
-These payloads can be sent to `/core/update` for admission + provenance logging verification.
+**Validation Tests:**
+1. ✅ Component Health Check
+2. ✅ End-to-End Flow Proof  
+3. ✅ Artifact Chain Validation (A1→A4)
+4. ✅ Replay & Reconstruction Proof
+5. ✅ Determinism Validation
+6. ✅ TTG/TTV Integration Proof
 
-## Submission Rule
+## Configuration
 
-All submissions MUST include REVIEW_PACKET.md.
-Submissions without this file will not be reviewed or accepted.
+Configuration is managed through `bhiv_config.py`:
+
+```python
+from bhiv_config import BHIVConfig
+
+# Get component URLs
+urls = BHIVConfig.get_component_urls()
+
+# Validate configuration
+validation = BHIVConfig.validate_config()
+```
+
+Environment variables can be set in `.env` file:
+
+```bash
+# Component URLs
+PROMPT_RUNNER_URL=http://127.0.0.1:8003
+CREATOR_CORE_URL=http://127.0.0.1:8000
+BHIV_CORE_URL=http://127.0.0.1:8001
+
+# Timeouts
+REQUEST_TIMEOUT=30
+PIPELINE_TIMEOUT=60
+```
+
+## Error Handling
+
+The system handles various failure scenarios:
+
+- **Component Unavailability**: Graceful degradation with clear error messages
+- **Invalid Input**: Prompt and schema validation at entry points
+- **Pipeline Interruption**: Partial artifact preservation and error tracking
+- **Storage Failures**: Bucket write failure handling and backup mechanisms
+
+## Monitoring
+
+### Health Check
+```bash
+curl http://localhost:8004/pipeline/health
+```
+
+### Bucket Statistics
+```bash
+curl http://localhost:8005/bucket/stats
+```
+
+### Component Status
+Each component provides its own health endpoint for detailed monitoring.
+
+## Production Deployment
+
+### Requirements
+- Python 3.8+
+- All component dependencies installed
+- Network connectivity between components
+- Sufficient storage for artifact bucket
+
+### Scaling Considerations
+- Components can be deployed on separate servers
+- Update URLs in configuration for distributed deployment
+- Consider load balancing for high-traffic scenarios
+- Monitor bucket storage growth
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Port Conflicts**
+   ```bash
+   # Check if ports are in use
+   netstat -an | findstr "8003 8000 8001 8004 8005"
+   ```
+
+2. **Component Not Starting**
+   ```bash
+   # Check component logs
+   # Verify dependencies are installed
+   # Ensure correct working directory
+   ```
+
+3. **Pipeline Failures**
+   ```bash
+   # Check component health
+   curl http://localhost:8004/pipeline/health
+   
+   # Review error messages in response
+   # Check individual component endpoints
+   ```
+
+## Development
+
+### Adding New Components
+1. Update `bhiv_config.py` with new component URL/port
+2. Modify `integration_bridge.py` to include new component in flow
+3. Update health checks and validation
+4. Test integration with `validate_full_integration.py`
+
+### Extending Pipeline
+1. Add new artifact types to `ArtifactGraph`
+2. Update bucket storage schema
+3. Modify pipeline flow in `BHIVIntegrationBridge`
+4. Add validation tests
+
+## Files Structure
+
+```
+Core-Integrator-Sprint-1.1-/
+├── integration_bridge.py          # Main pipeline orchestrator
+├── bhiv_bucket.py                 # Artifact storage system
+├── validate_full_integration.py   # Comprehensive validation
+├── test_integration.py            # Quick integration test
+├── start_bhiv_pipeline.py         # Component startup script
+├── bhiv_config.py                 # Configuration management
+├── review_packets/
+│   └── full_integration_v1.md     # Review packet (MANDATORY)
+├── prompt-runner01/               # Prompt Runner component
+├── creator-core/                  # Creator Core component
+└── README.md                      # This file
+```
+
+## Support
+
+For issues or questions:
+1. Check the troubleshooting section
+2. Review component logs
+3. Run validation tests
+4. Check the review packet for detailed documentation
+
+## License
+
+This integration is part of the BHIV infrastructure system.
+
+---
+
+**🎯 Integration Status**: COMPLETED ✅  
+**🚀 Production Ready**: YES ✅  
+**🔗 Pipeline Operational**: YES ✅  
+**📊 All Tests Passing**: YES ✅

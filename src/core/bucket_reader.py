@@ -225,4 +225,135 @@ class BucketReader:
         artifact_type: Optional[str] = None,
         source_module_id: Optional[str] = None,
         limit: Optional[int] = 100
-    ) -> List[Dict[str, Any]]:\n        \"\"\"\n        Search artifacts with multiple filter criteria\n        \n        Args:\n            instruction_id: Filter by instruction ID\n            execution_id: Filter by execution ID\n            artifact_type: Filter by artifact type\n            source_module_id: Filter by source module\n            limit: Maximum results to return\n            \n        Returns:\n            List of matching artifacts\n        \"\"\"\n        try:\n            results = []\n            \n            # If instruction_id is specified, start there\n            if instruction_id:\n                artifacts = self.get_artifacts_by_instruction(instruction_id)\n            else:\n                # Search all instructions\n                artifacts = []\n                for inst_id in self.lineage_manager.lineage_store.keys():\n                    artifacts.extend(self.get_artifacts_by_instruction(inst_id))\n            \n            # Apply filters\n            for artifact in artifacts:\n                # Filter by execution_id\n                if execution_id and artifact.get(\"execution_id\") != execution_id:\n                    continue\n                \n                # Filter by artifact_type\n                if artifact_type and artifact.get(\"artifact_type\") != artifact_type:\n                    continue\n                \n                # Filter by source_module_id\n                if source_module_id and artifact.get(\"source_module_id\") != source_module_id:\n                    continue\n                \n                results.append(artifact)\n                \n                # Apply limit\n                if limit and len(results) >= limit:\n                    break\n            \n            # Sort by timestamp (newest first)\n            results.sort(key=lambda x: x[\"timestamp\"], reverse=True)\n            \n            self.logger.debug(\n                f\"Search returned {len(results)} artifacts\",\n                extra={\n                    \"event_type\": \"bucket.artifacts_searched\",\n                    \"filters\": {\n                        \"instruction_id\": instruction_id,\n                        \"execution_id\": execution_id,\n                        \"artifact_type\": artifact_type,\n                        \"source_module_id\": source_module_id\n                    },\n                    \"result_count\": len(results),\n                    \"telemetry_target\": \"insightflow\"\n                }\n            )\n            \n            return results\n            \n        except Exception as e:\n            self.logger.error(f\"Artifact search failed: {e}\")\n            return []\n    \n    def get_bucket_statistics(self) -> Dict[str, Any]:\n        \"\"\"\n        Get comprehensive Bucket storage statistics\n        \n        Returns:\n            Statistics about stored artifacts and lineage\n        \"\"\"\n        try:\n            lineage_stats = self.lineage_manager.get_lineage_statistics()\n            \n            # Get artifact type distribution\n            artifact_types = {}\n            total_size_estimate = 0\n            \n            for instruction_id in self.lineage_manager.lineage_store.keys():\n                artifacts = self.get_artifacts_by_instruction(instruction_id)\n                \n                for artifact in artifacts:\n                    artifact_type = artifact[\"artifact_type\"]\n                    artifact_types[artifact_type] = artifact_types.get(artifact_type, 0) + 1\n                    \n                    # Estimate size (rough)\n                    payload_size = len(str(artifact[\"payload\"]))\n                    total_size_estimate += payload_size\n            \n            return {\n                \"total_instructions\": lineage_stats[\"total_instructions\"],\n                \"total_artifacts\": lineage_stats[\"total_artifacts\"],\n                \"artifact_type_distribution\": artifact_types,\n                \"max_lineage_depth\": lineage_stats[\"max_lineage_depth\"],\n                \"average_artifacts_per_instruction\": lineage_stats[\"average_artifacts_per_instruction\"],\n                \"estimated_storage_size_bytes\": total_size_estimate,\n                \"storage_efficiency\": {\n                    \"artifacts_per_instruction\": lineage_stats[\"average_artifacts_per_instruction\"],\n                    \"lineage_completeness\": self._calculate_lineage_completeness()\n                }\n            }\n            \n        except Exception as e:\n            self.logger.error(f\"Failed to get bucket statistics: {e}\")\n            return {}\n    \n    def _calculate_lineage_completeness(self) -> float:\n        \"\"\"\n        Calculate what percentage of instructions have complete lineage chains\n        \n        Returns:\n            Completeness ratio (0.0 to 1.0)\n        \"\"\"\n        total_instructions = len(self.lineage_manager.lineage_store)\n        \n        if total_instructions == 0:\n            return 0.0\n        \n        complete_lineages = 0\n        \n        for instruction_id in self.lineage_manager.lineage_store.keys():\n            integrity = self.lineage_manager.validate_lineage_integrity(instruction_id)\n            if integrity[\"valid\"]:\n                complete_lineages += 1\n        \n        return complete_lineages / total_instructions
+    ) -> List[Dict[str, Any]]:
+        """
+        Search artifacts with multiple filter criteria
+        
+        Args:
+            instruction_id: Filter by instruction ID
+            execution_id: Filter by execution ID
+            artifact_type: Filter by artifact type
+            source_module_id: Filter by source module
+            limit: Maximum results to return
+            
+        Returns:
+            List of matching artifacts
+        """
+        try:
+            results = []
+            
+            # If instruction_id is specified, start there
+            if instruction_id:
+                artifacts = self.get_artifacts_by_instruction(instruction_id)
+            else:
+                # Search all instructions
+                artifacts = []
+                for inst_id in self.lineage_manager.lineage_store.keys():
+                    artifacts.extend(self.get_artifacts_by_instruction(inst_id))
+            
+            # Apply filters
+            for artifact in artifacts:
+                # Filter by execution_id
+                if execution_id and artifact.get("execution_id") != execution_id:
+                    continue
+                
+                # Filter by artifact_type
+                if artifact_type and artifact.get("artifact_type") != artifact_type:
+                    continue
+                
+                # Filter by source_module_id
+                if source_module_id and artifact.get("source_module_id") != source_module_id:
+                    continue
+                
+                results.append(artifact)
+                
+                # Apply limit
+                if limit and len(results) >= limit:
+                    break
+            
+            # Sort by timestamp (newest first)
+            results.sort(key=lambda x: x["timestamp"], reverse=True)
+            
+            self.logger.debug(
+                f"Search returned {len(results)} artifacts",
+                extra={
+                    "event_type": "bucket.artifacts_searched",
+                    "filters": {
+                        "instruction_id": instruction_id,
+                        "execution_id": execution_id,
+                        "artifact_type": artifact_type,
+                        "source_module_id": source_module_id
+                    },
+                    "result_count": len(results),
+                    "telemetry_target": "insightflow"
+                }
+            )
+            
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"Artifact search failed: {e}")
+            return []
+    
+    def get_bucket_statistics(self) -> Dict[str, Any]:
+        """
+        Get comprehensive Bucket storage statistics
+        
+        Returns:
+            Statistics about stored artifacts and lineage
+        """
+        try:
+            lineage_stats = self.lineage_manager.get_lineage_statistics()
+            
+            # Get artifact type distribution
+            artifact_types = {}
+            total_size_estimate = 0
+            
+            for instruction_id in self.lineage_manager.lineage_store.keys():
+                artifacts = self.get_artifacts_by_instruction(instruction_id)
+                
+                for artifact in artifacts:
+                    artifact_type = artifact["artifact_type"]
+                    artifact_types[artifact_type] = artifact_types.get(artifact_type, 0) + 1
+                    
+                    # Estimate size (rough)
+                    payload_size = len(str(artifact["payload"]))
+                    total_size_estimate += payload_size
+            
+            return {
+                "total_instructions": lineage_stats["total_instructions"],
+                "total_artifacts": lineage_stats["total_artifacts"],
+                "artifact_type_distribution": artifact_types,
+                "max_lineage_depth": lineage_stats["max_lineage_depth"],
+                "average_artifacts_per_instruction": lineage_stats["average_artifacts_per_instruction"],
+                "estimated_storage_size_bytes": total_size_estimate,
+                "storage_efficiency": {
+                    "artifacts_per_instruction": lineage_stats["average_artifacts_per_instruction"],
+                    "lineage_completeness": self._calculate_lineage_completeness()
+                }
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get bucket statistics: {e}")
+            return {}
+    
+    def _calculate_lineage_completeness(self) -> float:
+        """
+        Calculate what percentage of instructions have complete lineage chains
+        
+        Returns:
+            Completeness ratio (0.0 to 1.0)
+        """
+        total_instructions = len(self.lineage_manager.lineage_store)
+        
+        if total_instructions == 0:
+            return 0.0
+        
+        complete_lineages = 0
+        
+        for instruction_id in self.lineage_manager.lineage_store.keys():
+            integrity = self.lineage_manager.validate_lineage_integrity(instruction_id)
+            if integrity["valid"]:
+                complete_lineages += 1
+        
+        return complete_lineages / total_instructions

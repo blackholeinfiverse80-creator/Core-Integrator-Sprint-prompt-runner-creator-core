@@ -34,6 +34,19 @@ class Gateway:
         # Initialize logger first
         self.logger = setup_logger(__name__)
         
+        # Memory adapter: MongoDB > Noopur > SQLite (priority order with fallback)
+        if USE_MONGODB and MONGODB_AVAILABLE:
+            try:
+                self.memory = MongoDBAdapter(MONGODB_CONNECTION_STRING, MONGODB_DATABASE_NAME)
+                self.logger.info("Using MongoDB adapter")
+            except Exception as e:
+                self.logger.warning(f"MongoDB connection failed, falling back to SQLite: {e}")
+                self.memory = SQLiteAdapter(DB_PATH)
+        elif INTEGRATOR_USE_NOOPUR:
+            self.memory = RemoteNoopurAdapter()
+        else:
+            self.memory = SQLiteAdapter(DB_PATH)
+        
         # Initialize registry validator for strict execution discipline
         self.registry_validator = RegistryValidator()
         
@@ -72,18 +85,6 @@ class Gateway:
             for e in errors:
                 self.logger.warning(f"Module loader issue: {e}")
         
-        # Memory adapter: MongoDB > Noopur > SQLite (priority order with fallback)
-        if USE_MONGODB and MONGODB_AVAILABLE:
-            try:
-                self.memory = MongoDBAdapter(MONGODB_CONNECTION_STRING, MONGODB_DATABASE_NAME)
-                self.logger.info("Using MongoDB adapter")
-            except Exception as e:
-                self.logger.warning(f"MongoDB connection failed, falling back to SQLite: {e}")
-                self.memory = SQLiteAdapter(DB_PATH)
-        elif INTEGRATOR_USE_NOOPUR:
-            self.memory = RemoteNoopurAdapter()
-        else:
-            self.memory = SQLiteAdapter(DB_PATH)
         self.creator_router = CreatorRouter(self.memory)
         
         # Initialize replay engine after routing engine is available
