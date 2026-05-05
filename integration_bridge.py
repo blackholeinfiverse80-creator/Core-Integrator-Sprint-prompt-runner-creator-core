@@ -156,18 +156,21 @@ class BHIVIntegrationBridge:
         # Extract blueprint data for Core execution
         blueprint_data = blueprint.get("blueprint", blueprint)
         
-        # Convert to Core request format
+        # Convert to Core request format - use creator module
         core_request = {
-            "module": blueprint_data.get("target_product", "creator"),
-            "intent": blueprint_data.get("intent_type", "generate"), 
+            "module": "creator",  # Use creator module for blueprint execution
+            "intent": "generate", 
             "user_id": f"bhiv_user_{uuid.uuid4().hex[:8]}",
-            "data": blueprint_data.get("payload", {})
+            "data": {
+                "blueprint": blueprint_data.get("payload", blueprint_data),
+                "target_product": blueprint_data.get("target_product", "creator")
+            }
         }
         
         response = requests.post(
             f"{self.bhiv_core_url}/core",
             json=core_request,
-            timeout=30
+            timeout=45  # Increased timeout
         )
         response.raise_for_status()
         return response.json()
