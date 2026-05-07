@@ -1,0 +1,170 @@
+{
+  "flow_name": "TANTRA_EXECUTION_FLOW",
+  "flow_version": "1.0.0",
+  "trace_id": "inst_creator_core_12345",
+  "timestamp_start": "2025-01-15T10:30:44.000000Z",
+  "timestamp_end": "2025-01-15T10:30:46.500000Z",
+  "duration_ms": 2500,
+  "phases": [
+    {
+      "phase_number": 1,
+      "phase_name": "INSTRUCTION_RECEIVED",
+      "component": "BHIV_Core_Gateway",
+      "timestamp": "2025-01-15T10:30:44.100000Z",
+      "input": {
+        "instruction_id": "inst_creator_core_12345",
+        "origin": "creator_core",
+        "intent_type": "generate",
+        "target_product": "creator",
+        "payload": {
+          "prompt": "Create a simple text processing module",
+          "parameters": {
+            "complexity": "simple",
+            "type": "text_processing"
+          }
+        },
+        "schema_version": "1.0.0"
+      },
+      "output": {
+        "routing_decision": {
+          "target_product": "creator",
+          "module_path": "creator",
+          "execution_intent": "generate"
+        }
+      },
+      "status": "completed",
+      "duration_ms": 50
+    },
+    {
+      "phase_number": 2,
+      "phase_name": "CONTRACT_COMPILATION",
+      "component": "CET_Compiler",
+      "timestamp": "2025-01-15T10:30:44.200000Z",
+      "input": {
+        "instruction": "...",
+        "routing_decision": "..."
+      },
+      "output": {
+        "contract_id": "contract_a1b2c3d4e5f6",
+        "contract_hash": "8f3a2b1c9d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1",
+        "execution_plan": {
+          "target_module": "creator",
+          "execution_intent": "generate",
+          "execution_data": "..."
+        },
+        "constraints": {
+          "deterministic": true,
+          "replay_safe": true
+        }
+      },
+      "status": "completed",
+      "duration_ms": 20,
+      "deterministic": true
+    },
+    {
+      "phase_number": 3,
+      "phase_name": "AUTHORITY_VALIDATION",
+      "component": "Sarathi_Authority_Engine",
+      "timestamp": "2025-01-15T10:30:44.250000Z",
+      "input": {
+        "contract": "..."
+      },
+      "output": {
+        "allowed": true,
+        "reason": "valid_contract",
+        "decision_id": "decision_contract_a1b2c3d4e5f6",
+        "validation_checks": {
+          "has_contract_id": true,
+          "has_trace_id": true,
+          "has_execution_plan": true,
+          "has_valid_module": true,
+          "has_constraints": true,
+          "has_contract_hash": true
+        }
+      },
+      "status": "completed",
+      "duration_ms": 15
+    },
+    {
+      "phase_number": 4,
+      "phase_name": "EXECUTION_GATE",
+      "component": "Execution_Gate",
+      "timestamp": "2025-01-15T10:30:44.300000Z",
+      "input": {
+        "contract": "...",
+        "authority_decision": "..."
+      },
+      "gate_decision": "ALLOWED",
+      "gate_reason": "authority_approved",
+      "output": {
+        "gate_status": "EXECUTED",
+        "execution_initiated": true
+      },
+      "status": "completed",
+      "duration_ms": 10
+    },
+    {
+      "phase_number": 5,
+      "phase_name": "MODULE_EXECUTION",
+      "component": "Creator_Agent",
+      "timestamp": "2025-01-15T10:30:44.350000Z",
+      "input": {
+        "execution_data": "..."
+      },
+      "output": {
+        "status": "success",
+        "message": "Content generated successfully",
+        "result": {
+          "generated_content": "...",
+          "metadata": "..."
+        }
+      },
+      "status": "completed",
+      "duration_ms": 2000
+    },
+    {
+      "phase_number": 6,
+      "phase_name": "ARTIFACT_EMISSION",
+      "component": "Bucket_Lineage_Manager",
+      "timestamp": "2025-01-15T10:30:46.400000Z",
+      "artifacts_created": [
+        {
+          "artifact_type": "blueprint",
+          "artifact_id": "artifact_blueprint_abc123",
+          "artifact_hash": "hash_blueprint"
+        },
+        {
+          "artifact_type": "contract",
+          "artifact_id": "artifact_contract_def456",
+          "artifact_hash": "hash_contract",
+          "parent_hash": "hash_blueprint"
+        },
+        {
+          "artifact_type": "execution",
+          "artifact_id": "artifact_execution_ghi789",
+          "artifact_hash": "hash_execution",
+          "parent_hash": "hash_contract"
+        },
+        {
+          "artifact_type": "result",
+          "artifact_id": "artifact_result_jkl012",
+          "artifact_hash": "hash_result",
+          "parent_hash": "hash_execution"
+        }
+      ],
+      "lineage_chain_length": 4,
+      "status": "completed",
+      "duration_ms": 100
+    }
+  ],
+  "trace_consistency": true,
+  "flow_complete": true,
+  "deterministic_hash": "flow_hash_xyz789abc123def456",
+  "tantra_metadata": {
+    "cet_present": true,
+    "sarathi_present": true,
+    "gate_present": true,
+    "direct_execution_removed": true,
+    "authority_enforced": true
+  }
+}

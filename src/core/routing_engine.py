@@ -10,6 +10,9 @@ from .execution_envelope import ExecutionEnvelopeManager
 from .hash_generation import ExecutionHashGenerator
 from .lineage_manager import LineageManager
 from .global_trace_manager import GlobalTraceManager
+from .cet_contract_compiler import CETContractCompiler
+from .authority_engine import SarathiAuthorityEngine
+from .execution_gate import ExecutionGate
 from ..utils.logger import setup_logger
 
 class RoutingEngine:
@@ -23,6 +26,11 @@ class RoutingEngine:
         self.hash_generator = ExecutionHashGenerator()
         self.lineage_manager = LineageManager(memory)
         self.trace_manager = GlobalTraceManager()
+        
+        # TANTRA LAYERS
+        self.cet_compiler = CETContractCompiler()
+        self.authority_engine = SarathiAuthorityEngine()
+        self.execution_gate = ExecutionGate(agents)
     
     def execute_instruction(self, instruction: Dict[str, Any], routing_decision: RoutingDecision, start_time: float) -> Dict[str, Any]:
         """
@@ -51,13 +59,40 @@ class RoutingEngine:
         )
         
         try:
-            # Execute through module
-            execution_result = self._execute_through_module(
-                module_name=routing_decision.module_path,
-                intent=routing_decision.execution_intent,
-                data=routing_decision.execution_data,
-                instruction_id=instruction_id
+            # TANTRA FLOW: Core → CET → Sarathi → Gate → Execution
+            
+            # PHASE 1: CET - Compile execution contract
+            contract = self.cet_compiler.compile_contract(instruction, routing_decision)
+            contract_dict = self.cet_compiler.contract_to_dict(contract)
+            
+            self.logger.info(
+                "Contract compiled",
+                extra={
+                    "event_type": "cet.contract_compiled",
+                    "contract_id": contract.contract_id,
+                    "instruction_id": instruction_id,
+                    "contract_hash": contract.contract_hash,
+                    "telemetry_target": "insightflow"
+                }
             )
+            
+            # PHASE 2: Sarathi - Validate contract
+            authority_decision = self.authority_engine.validate_contract(contract_dict)
+            authority_dict = self.authority_engine._decision_to_dict(authority_decision)
+            
+            self.logger.info(
+                "Authority decision",
+                extra={
+                    "event_type": "sarathi.authority_decision",
+                    "contract_id": contract.contract_id,
+                    "allowed": authority_decision.allowed,
+                    "reason": authority_decision.reason,
+                    "telemetry_target": "insightflow"
+                }
+            )
+            
+            # PHASE 3: Gate - Execute if authorized
+            execution_result = self.execution_gate.execute_if_authorized(contract_dict, authority_dict)
             
             # Calculate execution duration
             execution_duration_ms = (time.time() - start_time) * 1000
@@ -82,8 +117,16 @@ class RoutingEngine:
                 output_data=execution_result
             )
             
-            # Add hashes to envelope
+            # Add TANTRA metadata to envelope
             execution_result['execution_envelope'].update(hash_fingerprint)
+            execution_result['tantra_flow'] = {
+                "contract_id": contract.contract_id,
+                "contract_hash": contract.contract_hash,
+                "authority_allowed": authority_decision.allowed,
+                "authority_reason": authority_decision.reason,
+                "gate_status": execution_result.get('gate_status'),
+                "flow_complete": True
+            }
             
             # Log execution completed
             self.logger.info(
@@ -112,46 +155,7 @@ class RoutingEngine:
                 "instruction_id": instruction_id
             }
     
-    def _execute_through_module(self, module_name: str, intent: str, data: Dict[str, Any], instruction_id: str) -> Dict[str, Any]:
-        """Execute through specified module"""
-        
-        if module_name not in self.agents:
-            raise ValueError(f"Module {module_name} not found")
-        
-        agent = self.agents[module_name]
-        if agent is None:
-            raise ValueError(f"Module {module_name} is invalid or failed to load")
-        
-        # Get context (empty for instruction-based execution)
-        context = []
-        
-        # Execute through agent
-        if hasattr(agent, 'process'):
-            # BaseModule interface
-            response = agent.process(data, context)
-        elif hasattr(agent, 'handle_request'):
-            # Agent interface
-            response = agent.handle_request(intent, data, context)
-        else:
-            raise ValueError(f"Module {module_name} has invalid interface")
-        
-        # Normalize response
-        normalized = {
-            'status': 'success',
-            'message': '',
-            'result': {}
-        }
-        
-        if isinstance(response, dict):
-            normalized['status'] = response.get('status', 'success')
-            normalized['message'] = response.get('message', '')
-            if 'result' in response:
-                normalized['result'] = response.get('result', {})
-            else:
-                raw = {k: v for k, v in response.items() if k not in ('status', 'message', 'result')}
-                normalized['result'] = raw
-        
-        return normalized
+
     
     def _generate_instruction_envelope(self, instruction: Dict[str, Any], routing_decision: RoutingDecision, 
                                      execution_result: Dict[str, Any], execution_duration_ms: float):
@@ -172,11 +176,12 @@ class RoutingEngine:
         )
     
     def _emit_to_bucket(self, instruction: Dict[str, Any], execution_result: Dict[str, Any], envelope):
-        """Emit structured artifacts to Bucket with lineage"""
+        """Emit structured artifacts to Bucket with lineage including contract and authority"""
         try:
             instruction_id = instruction.get('instruction_id')
             execution_id = envelope.execution_id
             parent_instruction_id = instruction.get('parent_instruction_id')
+            contract_id = execution_result.get('contract_id', 'unknown')
             
             # Create blueprint artifact (instruction)
             blueprint_artifact = self.lineage_manager.create_artifact(
@@ -199,6 +204,25 @@ class RoutingEngine:
                 }
             )
             
+            # Create contract artifact (CET output)
+            contract_artifact = self.lineage_manager.create_artifact(
+                artifact_type="contract",
+                instruction_id=instruction_id,
+                execution_id=execution_id,
+                source_module_id="cet_compiler",
+                payload={
+                    "contract_id": contract_id,
+                    "trace_id": execution_result.get('trace_id'),
+                    "contract_hash": execution_result.get('contract_hash', 'unknown')
+                },
+                parent_instruction_id=parent_instruction_id,
+                parent_hash=blueprint_artifact["artifact_hash"],
+                metadata={
+                    "contract_id": contract_id,
+                    "gate_status": execution_result.get('gate_status', 'unknown')
+                }
+            )
+            
             # Create execution artifact (envelope)
             execution_artifact = self.lineage_manager.create_artifact(
                 artifact_type="execution",
@@ -208,10 +232,12 @@ class RoutingEngine:
                 payload={
                     "execution_envelope": execution_result.get('execution_envelope', {}),
                     "input_hash": envelope.input_hash,
-                    "output_hash": envelope.output_hash
+                    "output_hash": envelope.output_hash,
+                    "contract_id": contract_id,
+                    "gate_status": execution_result.get('gate_status')
                 },
                 parent_instruction_id=parent_instruction_id,
-                parent_hash=blueprint_artifact["artifact_hash"],
+                parent_hash=contract_artifact["artifact_hash"],
                 metadata={
                     "execution_duration_ms": envelope.execution_duration_ms,
                     "status": envelope.status,
@@ -244,10 +270,11 @@ class RoutingEngine:
                     "execution_id": execution_id,
                     "artifacts": {
                         "blueprint": blueprint_artifact["artifact_id"],
+                        "contract": contract_artifact["artifact_id"],
                         "execution": execution_artifact["artifact_id"],
                         "result": result_artifact["artifact_id"]
                     },
-                    "lineage_chain_length": 3,
+                    "lineage_chain_length": 4,
                     "telemetry_target": "bucket"
                 }
             )
